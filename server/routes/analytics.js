@@ -19,35 +19,45 @@ router.get('/farmer', auth, async (req, res) => {
     // Get farmer's products
     const products = await Product.find({ farmer: userId });
     
+    if (products.length === 0) {
+      return res.json({
+        hasData: false,
+        message: 'No products found. Add products to see analytics.'
+      });
+    }
+
     // Calculate stats
     const totalProducts = products.length;
     const activeProducts = products.filter(p => p.available).length;
     const totalViews = products.reduce((sum, p) => sum + (p.views || 0), 0);
-    const monthlyRevenue = products.reduce((sum, p) => sum + (p.price * (p.initialQuantity - p.quantity)), 0);
+    const potentialRevenue = products.reduce((sum, p) => sum + (p.price * p.quantity), 0);
     
     // Get message stats
     const totalMessages = await Message.countDocuments({
       $or: [{ sender: userId }, { receiver: userId }]
     });
 
-    // Popular products (mock data for now)
+    // Popular products
     const popularProducts = products
       .sort((a, b) => (b.views || 0) - (a.views || 0))
       .slice(0, 5)
       .map(p => ({
         name: p.name,
         views: p.views || 0,
-        sales: Math.floor(Math.random() * 20) // Mock sales data
+        price: p.price,
+        quantity: p.quantity,
+        available: p.available
       }));
 
     res.json({
+      hasData: true,
       stats: {
         totalProducts,
         activeProducts,
         totalViews,
-        monthlyRevenue,
+        potentialRevenue,
         totalMessages,
-        responseRate: Math.floor(Math.random() * 30) + 70 // Mock data
+        responseRate: Math.floor(Math.random() * 30) + 70 // Mock for now
       },
       popularProducts,
       aiInsights: generateAIInsights(products)
@@ -61,32 +71,93 @@ router.get('/farmer', auth, async (req, res) => {
 function generateAIInsights(products) {
   const insights = [];
   
-  if (products.length > 0) {
-    const avgPrice = products.reduce((sum, p) => sum + p.price, 0) / products.length;
-    
+  if (products.length === 0) return insights;
+
+  const totalViews = products.reduce((sum, p) => sum + (p.views || 0), 0);
+  const avgPrice = products.reduce((sum, p) => sum + p.price, 0) / products.length;
+  const activeProducts = products.filter(p => p.available).length;
+
+  if (totalViews === 0) {
     insights.push({
-      type: 'market_trend',
-      title: 'Market Trend',
-      message: `Your average price of KES ${avgPrice.toFixed(2)} is competitive in the market.`,
+      type: 'info',
+      title: 'Getting Started',
+      message: 'Your products are live! Share your listings to get more views.',
       color: 'blue'
     });
-
+  } else if (totalViews < 10) {
     insights.push({
-      type: 'price_suggestion',
-      title: 'Price Suggestion',
-      message: 'Consider seasonal pricing adjustments for better sales.',
+      type: 'tip',
+      title: 'Increase Visibility',
+      message: 'Consider adding better photos and descriptions to attract more buyers.',
       color: 'green'
     });
-
+  } else {
     insights.push({
-      type: 'inventory_tip',
-      title: 'Inventory Tip',
-      message: 'Restock popular items to meet demand.',
+      type: 'success',
+      title: 'Good Engagement',
+      message: `Your products have ${totalViews} total views. Keep it up!`,
+      color: 'green'
+    });
+  }
+
+  if (activeProducts < 3) {
+    insights.push({
+      type: 'suggestion',
+      title: 'Expand Your Offerings',
+      message: 'Add more product variety to attract different types of buyers.',
       color: 'purple'
     });
   }
 
+  insights.push({
+    type: 'market',
+    title: 'Price Analysis',
+    message: `Your average price of KES ${avgPrice.toFixed(2)} is competitive in the market.`,
+    color: 'blue'
+  });
+
   return insights;
 }
+
+// Get buyer analytics (basic for now)
+router.get('/buyer', auth, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    
+    // Basic buyer stats
+    const messageCount = await Message.countDocuments({
+      $or: [{ sender: userId }, { receiver: userId }]
+    });
+
+    const contactedFarmers = await Message.distinct('receiver', {
+      sender: userId
+    });
+
+    res.json({
+      hasData: messageCount > 0,
+      stats: {
+        messagesSent: messageCount,
+        farmersContacted: contactedFarmers.length,
+        activeConversations: Math.floor(Math.random() * 5) + 1 // Mock data
+      },
+      insights: [
+        {
+          type: 'info',
+          title: 'Buyer Tips',
+          message: 'Contact multiple farmers to compare prices and quality.',
+          color: 'blue'
+        },
+        {
+          type: 'tip',
+          title: 'Best Practices',
+          message: 'Build relationships with trusted farmers for better deals.',
+          color: 'green'
+        }
+      ]
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
 
 module.exports = router;
