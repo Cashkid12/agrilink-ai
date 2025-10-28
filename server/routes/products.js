@@ -8,25 +8,10 @@ const fs = require('fs');
 
 const router = express.Router();
 
-// Ensure uploads directory exists
-const uploadDir = 'uploads';
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-// Multer configuration for image uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/');
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, 'product-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
-
+// Simple multer configuration - store in memory instead of filesystem
+const storage = multer.memoryStorage();
 const upload = multer({
-  storage,
+  storage: storage,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
   fileFilter: (req, file, cb) => {
     const filetypes = /jpeg|jpg|png|gif/;
@@ -68,6 +53,7 @@ router.get('/', async (req, res) => {
 
     res.json(products);
   } catch (error) {
+    console.error('Error fetching products:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
@@ -88,51 +74,51 @@ router.get('/:id', async (req, res) => {
     
     res.json(product);
   } catch (error) {
+    console.error('Error fetching product:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 
-// Add new product (Farmers only)
+// Add new product (Farmers only) - FIXED VERSION
 router.post('/', auth, upload.array('images', 5), async (req, res) => {
   try {
+    console.log('Adding product - User:', req.user.userId);
+    console.log('Request body:', req.body);
+    console.log('Files:', req.files ? req.files.length : 0);
+
     const user = await User.findById(req.user.userId);
     if (user.role !== 'farmer') {
       return res.status(403).json({ message: 'Only farmers can add products' });
     }
 
+    // Parse the form data
     const productData = {
-      ...req.body,
-      farmer: req.user.userId,
+      name: req.body.name,
+      category: req.body.category,
+      description: req.body.description,
       price: parseFloat(req.body.price),
       quantity: parseFloat(req.body.quantity),
-      initialQuantity: parseFloat(req.body.quantity) // Store initial quantity
+      unit: req.body.unit,
+      farmer: req.user.userId,
+      location: {
+        county: req.body['location.county'] || req.body.county,
+        subcounty: req.body['location.subcounty'] || req.body.subcounty
+      }
     };
 
-    // Add image paths if files were uploaded
+    console.log('Parsed product data:', productData);
+
+    // Handle images - convert to base64 for now (simple solution)
     if (req.files && req.files.length > 0) {
-      productData.images = req.files.map(file => file.filename);
+      productData.images = req.files.map(file => {
+        return `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+      });
     }
 
-    // Parse location if it's a string
-    if (typeof productData.location === 'string') {
-      try {
-        productData.location = JSON.parse(productData.location);
-      } catch (e) {
-        // If parsing fails, use the original structure from form data
-        productData.location = {
-          county: req.body['location[county]'],
-          subcounty: req.body['location[subcounty]']
-        };
-      }
-    }
-
-    // AI Price Suggestion
-    const suggestedPrice = await calculateSuggestedPrice(productData);
-    productData.suggestedPrice = suggestedPrice;
-
-    // AI Recommendation
+    // Add AI suggestions
+    productData.suggestedPrice = await calculateSuggestedPrice(productData);
     productData.aiRecommendation = {
-      score: Math.random() * 0.3 + 0.7, // Random score between 0.7-1.0
+      score: Math.random() * 0.3 + 0.7,
       message: getAIRecommendation(productData)
     };
 
@@ -142,10 +128,19 @@ router.post('/', auth, upload.array('images', 5), async (req, res) => {
     // Populate farmer info
     await product.populate('farmer', 'name profile');
 
-    res.status(201).json({ message: 'Product added successfully', product });
+    console.log('Product added successfully:', product._id);
+    res.status(201).json({ 
+      message: 'Product added successfully', 
+      product 
+    });
+
   } catch (error) {
     console.error('Error adding product:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    res.status(500).json({ 
+      message: 'Error adding product', 
+      error: error.message,
+      stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
+    });
   }
 });
 
@@ -162,27 +157,24 @@ router.put('/:id', auth, upload.array('images', 5), async (req, res) => {
       return res.status(403).json({ message: 'Not authorized' });
     }
 
-    const updateData = { ...req.body };
-    
-    // Handle price and quantity conversion
-    if (updateData.price) updateData.price = parseFloat(updateData.price);
-    if (updateData.quantity) updateData.quantity = parseFloat(updateData.quantity);
-
-    // Handle location parsing
-    if (updateData.location && typeof updateData.location === 'string') {
-      try {
-        updateData.location = JSON.parse(updateData.location);
-      } catch (e) {
-        updateData.location = {
-          county: req.body['location[county]'],
-          subcounty: req.body['location[subcounty]']
-        };
+    const updateData = {
+      name: req.body.name,
+      category: req.body.category,
+      description: req.body.description,
+      price: parseFloat(req.body.price),
+      quantity: parseFloat(req.body.quantity),
+      unit: req.body.unit,
+      location: {
+        county: req.body['location.county'] || req.body.county,
+        subcounty: req.body['location.subcounty'] || req.body.subcounty
       }
-    }
+    };
 
     // Add new images if files were uploaded
     if (req.files && req.files.length > 0) {
-      const newImages = req.files.map(file => file.filename);
+      const newImages = req.files.map(file => {
+        return `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+      });
       updateData.images = [...(product.images || []), ...newImages];
     }
 
@@ -194,6 +186,7 @@ router.put('/:id', auth, upload.array('images', 5), async (req, res) => {
 
     res.json({ message: 'Product updated successfully', product: updatedProduct });
   } catch (error) {
+    console.error('Error updating product:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
@@ -213,6 +206,7 @@ router.delete('/:id', auth, async (req, res) => {
     await Product.findByIdAndDelete(req.params.id);
     res.json({ message: 'Product deleted successfully' });
   } catch (error) {
+    console.error('Error deleting product:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
@@ -226,6 +220,7 @@ router.get('/farmer/:farmerId', async (req, res) => {
 
     res.json(products);
   } catch (error) {
+    console.error('Error fetching farmer products:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
@@ -234,25 +229,14 @@ router.get('/farmer/:farmerId', async (req, res) => {
 async function calculateSuggestedPrice(productData) {
   const basePrice = productData.price;
   
-  // Market adjustment factors
-  const seasonalAdjustment = getSeasonalAdjustment();
-  const locationAdjustment = getLocationAdjustment(productData.location);
+  // Simple market adjustment factors
+  const seasonalAdjustment = 1.0; // Neutral for now
+  const locationAdjustment = 1.0; // Neutral for now
   const categoryAdjustment = getCategoryAdjustment(productData.category);
   
   const suggestedPrice = basePrice * seasonalAdjustment * locationAdjustment * categoryAdjustment;
   
-  return Math.round(suggestedPrice * 100) / 100; // Round to 2 decimal places
-}
-
-function getSeasonalAdjustment() {
-  const month = new Date().getMonth();
-  // Higher prices in off-seasons (basic example)
-  return month >= 3 && month <= 8 ? 1.1 : 0.9;
-}
-
-function getLocationAdjustment(location) {
-  const urbanCounties = ['nairobi', 'mombasa', 'kisumu'];
-  return urbanCounties.includes(location?.county?.toLowerCase()) ? 1.15 : 1.0;
+  return Math.round(suggestedPrice * 100) / 100;
 }
 
 function getCategoryAdjustment(category) {
@@ -273,9 +257,7 @@ function getAIRecommendation(productData) {
     `Consider bulk pricing for better sales.`,
     `High demand expected next week for ${productData.category}.`,
     `Perfect timing for seasonal ${productData.name}.`,
-    `Competitive pricing in your area.`,
-    `Fresh ${productData.name} always attracts buyers quickly.`,
-    `Consider organic certification for better pricing.`
+    `Competitive pricing in your area.`
   ];
   return recommendations[Math.floor(Math.random() * recommendations.length)];
 }
