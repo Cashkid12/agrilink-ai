@@ -29,4 +29,42 @@ const messageSchema = new mongoose.Schema({
   }
 });
 
+// Create room name from sender and receiver IDs
+messageSchema.statics.getRoomName = function(user1, user2) {
+  return [user1, user2].sort().join('_');
+};
+
+// Get conversations for a user
+messageSchema.statics.getConversations = async function(userId) {
+  const messages = await this.find({
+    $or: [{ sender: userId }, { receiver: userId }]
+  })
+    .populate('sender', 'name profile')
+    .populate('receiver', 'name profile')
+    .sort({ createdAt: -1 });
+
+  // Group by conversation
+  const conversations = {};
+  messages.forEach(message => {
+    const otherUser = message.sender._id.toString() === userId ? message.receiver : message.sender;
+    const room = this.getRoomName(userId, otherUser._id.toString());
+    
+    if (!conversations[room]) {
+      conversations[room] = {
+        _id: room,
+        participant: otherUser,
+        lastMessage: message.content,
+        lastMessageTime: message.createdAt,
+        unread: await this.countDocuments({
+          room: room,
+          receiver: userId,
+          read: false
+        })
+      };
+    }
+  });
+
+  return Object.values(conversations);
+};
+
 module.exports = mongoose.model('Message', messageSchema);
