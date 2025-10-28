@@ -45,24 +45,28 @@ messageSchema.statics.getConversations = async function(userId) {
 
   // Group by conversation
   const conversations = {};
-  messages.forEach(message => {
+  
+  for (const message of messages) {
     const otherUser = message.sender._id.toString() === userId ? message.receiver : message.sender;
     const room = this.getRoomName(userId, otherUser._id.toString());
     
     if (!conversations[room]) {
+      // Count unread messages for this conversation
+      const unreadCount = await this.countDocuments({
+        room: room,
+        receiver: userId,
+        read: false
+      });
+      
       conversations[room] = {
         _id: room,
         participant: otherUser,
         lastMessage: message.content,
         lastMessageTime: message.createdAt,
-        unread: await this.countDocuments({
-          room: room,
-          receiver: userId,
-          read: false
-        })
+        unread: unreadCount
       };
     }
-  });
+  }
 
   return Object.values(conversations);
 };
