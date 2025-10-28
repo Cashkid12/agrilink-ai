@@ -16,8 +16,11 @@ const io = socketIo(server, {
   }
 });
 
-// Middleware
-app.use(cors());
+// Middleware - IMPROVED CORS FOR PRODUCTION
+app.use(cors({
+  origin: [process.env.CLIENT_URL, 'http://localhost:5173'],
+  credentials: true
+}));
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 
@@ -56,6 +59,15 @@ app.use('/api/chat', require('./routes/chat'));
 // Basic route
 app.get('/', (req, res) => {
   res.json({ message: '🌾 AgriLink AI Backend is running!' });
+});
+
+// Health check route for Render
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'OK', 
+    message: 'Server is healthy',
+    timestamp: new Date().toISOString()
+  });
 });
 
 const PORT = process.env.PORT || 5000;
