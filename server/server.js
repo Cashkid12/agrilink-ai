@@ -16,9 +16,9 @@ const io = socketIo(server, {
   }
 });
 
-// Middleware - IMPROVED CORS FOR PRODUCTION
+// Middleware - FIXED CORS
 app.use(cors({
-  origin: [process.env.CLIENT_URL, 'http://localhost:5173'],
+  origin: ['http://localhost:5173', 'https://agrilink-ai.vercel.app'],
   credentials: true
 }));
 app.use(express.json());
@@ -50,24 +50,34 @@ io.on('connection', (socket) => {
   });
 });
 
-// Routes
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/users', require('./routes/users'));
-app.use('/api/products', require('./routes/products'));
-app.use('/api/chat', require('./routes/chat'));
+// Import routes
+const authRoutes = require('./routes/auth');
+const userRoutes = require('./routes/users');
+const productRoutes = require('./routes/products');
+const chatRoutes = require('./routes/chat');
 
-// Basic route
-app.get('/', (req, res) => {
+// Use routes - FIXED: Added /api prefix to all routes
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/chat', chatRoutes);
+
+// Basic routes - FIXED
+app.get('/api', (req, res) => {
   res.json({ message: '🌾 AgriLink AI Backend is running!' });
 });
 
-// Health check route for Render
-app.get('/health', (req, res) => {
+app.get('/api/health', (req, res) => {
   res.status(200).json({ 
     status: 'OK', 
     message: 'Server is healthy',
     timestamp: new Date().toISOString()
   });
+});
+
+// Handle undefined routes
+app.use('*', (req, res) => {
+  res.status(404).json({ message: 'Route not found' });
 });
 
 const PORT = process.env.PORT || 5000;
