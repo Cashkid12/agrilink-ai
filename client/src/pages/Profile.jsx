@@ -19,6 +19,12 @@ const Profile = () => {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
+  const [verificationStatus, setVerificationStatus] = useState({
+    email: true,
+    phone: false,
+    id: false,
+    overall: 65
+  })
 
   const counties = [
     'Nairobi', 'Mombasa', 'Kisumu', 'Nakuru', 'Eldoret', 'Thika', 
@@ -96,6 +102,19 @@ const Profile = () => {
     } finally {
       setSaving(false)
     }
+  }
+
+  const handleVerification = (type) => {
+    setMessage(`Starting ${type} verification process...`)
+    // In a real app, this would trigger verification flow
+    setTimeout(() => {
+      setVerificationStatus(prev => ({
+        ...prev,
+        [type]: true,
+        overall: prev.overall + 20
+      }))
+      setMessage(`${type.charAt(0).toUpperCase() + type.slice(1)} verification completed!`)
+    }, 2000)
   }
 
   if (!user) {
@@ -299,7 +318,7 @@ const Profile = () => {
               
               <div className="space-y-3">
                 <div className="flex items-center justify-center mb-4">
-                  <div className="w-20 h-20 bg-primary rounded-full flex items-center justify-center text-white text-2xl font-bold">
+                  <div className="w-20 h-20 bg-primary-500 rounded-full flex items-center justify-center text-white text-2xl font-bold">
                     {user.name?.charAt(0).toUpperCase()}
                   </div>
                 </div>
@@ -337,33 +356,83 @@ const Profile = () => {
                 Verification Status
               </h3>
               
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600">Profile Completion</span>
-                  <span className="font-medium text-green-600">80%</span>
+                  <span className="font-medium text-green-600">{verificationStatus.overall}%</span>
                 </div>
                 
                 <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div className="bg-green-600 h-2 rounded-full" style={{ width: '80%' }}></div>
+                  <div 
+                    className="bg-green-600 h-2 rounded-full transition-all duration-500" 
+                    style={{ width: `${verificationStatus.overall}%` }}
+                  ></div>
                 </div>
 
-                <div className="text-sm text-gray-600 space-y-2">
-                  <div className="flex items-center">
-                    <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                    Email verified
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <div className={`w-3 h-3 rounded-full ${
+                        verificationStatus.email ? 'bg-green-500' : 'bg-gray-400'
+                      }`}></div>
+                      <span className="text-sm text-gray-600">Email Verified</span>
+                    </div>
+                    {verificationStatus.email ? (
+                      <span className="text-green-600 text-sm">✓ Completed</span>
+                    ) : (
+                      <button 
+                        onClick={() => handleVerification('email')}
+                        className="text-primary-600 hover:text-primary-700 text-sm font-medium"
+                      >
+                        Verify
+                      </button>
+                    )}
                   </div>
-                  <div className="flex items-center">
-                    <div className="w-2 h-2 bg-yellow-500 rounded-full mr-2"></div>
-                    Phone verification pending
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <div className={`w-3 h-3 rounded-full ${
+                        verificationStatus.phone ? 'bg-green-500' : 'bg-yellow-500'
+                      }`}></div>
+                      <span className="text-sm text-gray-600">Phone Verification</span>
+                    </div>
+                    {verificationStatus.phone ? (
+                      <span className="text-green-600 text-sm">✓ Completed</span>
+                    ) : (
+                      <button 
+                        onClick={() => handleVerification('phone')}
+                        className="text-primary-600 hover:text-primary-700 text-sm font-medium"
+                      >
+                        Verify
+                      </button>
+                    )}
                   </div>
-                  <div className="flex items-center">
-                    <div className="w-2 h-2 bg-gray-400 rounded-full mr-2"></div>
-                    ID verification available
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <div className={`w-3 h-3 rounded-full ${
+                        verificationStatus.id ? 'bg-green-500' : 'bg-gray-400'
+                      }`}></div>
+                      <span className="text-sm text-gray-600">ID Verification</span>
+                    </div>
+                    {verificationStatus.id ? (
+                      <span className="text-green-600 text-sm">✓ Completed</span>
+                    ) : (
+                      <button 
+                        onClick={() => handleVerification('id')}
+                        className="text-primary-600 hover:text-primary-700 text-sm font-medium"
+                      >
+                        Start
+                      </button>
+                    )}
                   </div>
                 </div>
 
-                <button className="w-full btn-secondary text-sm">
-                  Complete Verification
+                <button 
+                  onClick={() => handleVerification('all')}
+                  className="w-full btn-primary text-sm"
+                >
+                  Complete All Verifications
                 </button>
               </div>
             </div>
@@ -376,14 +445,43 @@ const Profile = () => {
               
               <div className="space-y-3">
                 <button className="w-full text-left p-3 text-gray-700 hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors">
-                  Change Password
+                  🔒 Change Password
                 </button>
                 <button className="w-full text-left p-3 text-gray-700 hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors">
-                  Privacy Settings
+                  🔔 Notification Settings
+                </button>
+                <button className="w-full text-left p-3 text-gray-700 hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors">
+                  📄 Privacy Policy
                 </button>
                 <button className="w-full text-left p-3 text-red-600 hover:bg-red-50 rounded-lg border border-red-200 transition-colors">
-                  Delete Account
+                  🗑️ Delete Account
                 </button>
+              </div>
+            </div>
+
+            {/* Quick Stats */}
+            <div className="card">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Quick Stats
+              </h3>
+              
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Products Listed</span>
+                  <span className="font-medium">12</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Active Conversations</span>
+                  <span className="font-medium">5</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Response Rate</span>
+                  <span className="font-medium text-green-600">85%</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Customer Rating</span>
+                  <span className="font-medium text-yellow-600">4.7/5</span>
+                </div>
               </div>
             </div>
           </div>
