@@ -10,6 +10,9 @@ import Register from './pages/Register'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import ProductDetail from './pages/ProductDetail'
+import AddProduct from './pages/AddProduct'
+import Messages from './pages/Messages'
+import Analytics from './pages/Analytics'
 
 function App() {
   return (
@@ -26,6 +29,9 @@ function App() {
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/register" element={<Register />} />
               <Route path="/login" element={<Login />} />
+              <Route path="/add-product" element={<AddProduct />} />
+              <Route path="/messages" element={<Messages />} />
+              <Route path="/analytics" element={<Analytics />} />
             </Routes>
           </main>
           <Footer />
