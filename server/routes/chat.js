@@ -4,37 +4,11 @@ const Message = require('../models/Message');
 const User = require('../models/User');
 const router = express.Router();
 
-// Get conversations for a user
+// Get all conversations for the current user
 router.get('/conversations', auth, async (req, res) => {
   try {
-    const userId = req.user.userId;
-    
-    // Get all messages where user is either sender or receiver
-    const messages = await Message.find({
-      $or: [{ sender: userId }, { receiver: userId }]
-    })
-      .populate('sender', 'name profile')
-      .populate('receiver', 'name profile')
-      .sort({ createdAt: -1 });
-
-    // Group by conversation
-    const conversations = {};
-    messages.forEach(message => {
-      const otherUser = message.sender._id.toString() === userId ? message.receiver : message.sender;
-      const room = Message.getRoomName(userId, otherUser._id.toString());
-      
-      if (!conversations[room]) {
-        conversations[room] = {
-          _id: room,
-          participant: otherUser,
-          lastMessage: message.content,
-          lastMessageTime: message.createdAt,
-          unread: false // You can implement unread count logic
-        };
-      }
-    });
-
-    res.json(Object.values(conversations));
+    const conversations = await Message.getConversations(req.user.userId);
+    res.json(conversations);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
@@ -59,20 +33,27 @@ router.post('/', auth, async (req, res) => {
   try {
     const { room, receiver, content } = req.body;
     
+    if (!content || !content.trim()) {
+      return res.status(400).json({ message: 'Message content is required' });
+    }
+
     const message = new Message({
       room,
       sender: req.user.userId,
       receiver,
-      content
+      content: content.trim()
     });
 
     await message.save();
     
-    // Populate sender info for real-time response
+    // Populate sender and receiver info
     await message.populate('sender', 'name profile');
     await message.populate('receiver', 'name profile');
 
-    res.status(201).json({ message: 'Message sent', data: message });
+    res.status(201).json({ 
+      message: 'Message sent successfully', 
+      data: message 
+    });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
@@ -91,6 +72,30 @@ router.put('/:room/read', auth, async (req, res) => {
     );
 
     res.json({ message: 'Messages marked as read' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Get users for messaging (farmers for buyers, buyers for farmers)
+router.get('/users/list', auth, async (req, res) => {
+  try {
+    const currentUser = await User.findById(req.user.userId);
+    
+    let users;
+    if (currentUser.role === 'farmer') {
+      // For farmers, show buyers
+      users = await User.find({ role: 'buyer' })
+        .select('name profile role')
+        .limit(50);
+    } else {
+      // For buyers, show farmers
+      users = await User.find({ role: 'farmer' })
+        .select('name profile role')
+        .limit(50);
+    }
+
+    res.json(users);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
