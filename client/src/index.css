@@ -1,0 +1,122 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base Styles */
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+    scroll-behavior: smooth;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+  }
+  
+  body {
+    @apply bg-gray-50 text-gray-900 antialiased;
+  }
+}
+
+/* Component Styles */
+@layer components {
+  /* Buttons */
+  .btn {
+    @apply inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2;
+  }
+  
+  .btn-primary {
+    @apply btn bg-primary-500 text-white hover:bg-primary-600 focus:ring-primary-500 shadow-soft hover:shadow-medium;
+  }
+  
+  .btn-secondary {
+    @apply btn bg-white text-primary-500 border-2 border-primary-500 hover:bg-primary-50 focus:ring-primary-500;
+  }
+  
+  .btn-success {
+    @apply btn bg-green-500 text-white hover:bg-green-600 focus:ring-green-500;
+  }
+  
+  /* Cards */
+  .card {
+    @apply bg-white rounded-2xl shadow-soft border border-gray-100 overflow-hidden transition-all duration-300 hover:shadow-medium;
+  }
+  
+  .card-glass {
+    @apply bg-white/80 backdrop-blur-sm border border-white/20 rounded-2xl shadow-soft;
+  }
+  
+  /* Forms */
+  .input-field {
+    @apply w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all duration-200 placeholder-gray-400;
+  }
+  
+  .input-field-error {
+    @apply border-red-300 focus:ring-red-500;
+  }
+  
+  /* Navigation */
+  .nav-link {
+    @apply text-gray-700 hover:text-primary-500 font-medium transition-colors duration-200 relative;
+  }
+  
+  .nav-link.active {
+    @apply text-primary-500;
+  }
+  
+  /* Badges */
+  .badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium;
+  }
+  
+  .badge-primary {
+    @apply badge bg-primary-100 text-primary-800;
+  }
+  
+  .badge-success {
+    @apply badge bg-green-100 text-green-800;
+  }
+  
+  .badge-warning {
+    @apply badge bg-yellow-100 text-yellow-800;
+  }
+  
+  /* Gradients */
+  .gradient-primary {
+    @apply bg-gradient-to-r from-primary-500 to-primary-600;
+  }
+  
+  .gradient-green {
+    @apply bg-gradient-to-r from-green-500 to-emerald-600;
+  }
+  
+  /* Animations */
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+  }
+  
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+  
+  /* Loading spinner */
+  .spinner {
+    @apply animate-spin rounded-full border-2 border-primary-500 border-t-transparent;
+  }
+}
+
+/* Custom utilities */
+@layer utilities {
+  .text-shadow {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  
+  .backdrop-blur-glass {
+    backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.1);
+  }
+}
