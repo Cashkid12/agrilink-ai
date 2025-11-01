@@ -1,88 +1,82 @@
-const express = require('express');
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+import express from 'express';
+import jwt from 'jsonwebtoken';
+import User from '../models/User.js';
+import { protect } from '../middleware/auth.js';
+
 const router = express.Router();
 
-// Generate JWT Token
-const generateToken = (userId) => {
-  return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '7d' });
-};
-
-// Register
-router.post('/register', async (req, res) => {
-  try {
-    const { name, email, password, role, profile } = req.body;
-
-    // Check if user exists
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ message: 'User already exists' });
-    }
-
-    // Create user
-    const user = new User({
-      name,
-      email,
-      password,
-      role,
-      profile
-    });
-
-    await user.save();
-
-    // Generate token
-    const token = generateToken(user._id);
-
-    res.status(201).json({
-      message: 'User created successfully',
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        profile: user.profile
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-});
-
-// Login
+// Login route
 router.post('/login', async (req, res) => {
   try {
+    console.log('🔐 Login request from:', req.headers.origin);
+    console.log('📧 Login attempt for:', req.body.email);
+    
     const { email, password } = req.body;
 
-    // Find user
+    // Check if user exists
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(400).json({ message: 'Invalid credentials' });
+      console.log('❌ User not found:', email);
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials'
+      });
     }
 
-    // Check password
-    const isMatch = await user.comparePassword(password);
+    // Check if password matches
+    const isMatch = await user.matchPassword(password);
     if (!isMatch) {
-      return res.status(400).json({ message: 'Invalid credentials' });
+      console.log('❌ Password mismatch for:', email);
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials'
+      });
     }
 
-    // Generate token
-    const token = generateToken(user._id);
+    // Check if user is admin/staff
+    if (!['admin', 'staff'].includes(user.role)) {
+      console.log('❌ Unauthorized role:', user.role);
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Admin privileges required.'
+      });
+    }
+
+    // Create token
+    const token = jwt.sign(
+      { id: user._id, role: user.role }, 
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN }
+    );
+
+    console.log('✅ Login successful for:', user.username, 'Role:', user.role);
 
     res.json({
-      message: 'Login successful',
+      success: true,
       token,
       user: {
         id: user._id,
-        name: user.name,
+        username: user.username,
         email: user.email,
-        role: user.role,
-        profile: user.profile
+        role: user.role
       }
     });
+
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('💥 Login route error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during login'
+    });
   }
 });
 
-module.exports = router;
+// Get profile
+router.get('/profile', protect, async (req, res) => {
+  res.json({
+    success: true,
+    user: req.user
+  });
+});
+
+export default router;
