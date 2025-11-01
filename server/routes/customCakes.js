@@ -132,7 +132,8 @@ router.post('/', upload.array('images', 5), async (req, res) => {
     let errorMessage = 'Failed to submit request. Please try again.';
     
     if (error.name === 'ValidationError') {
-      errorMessage = 'Invalid data provided. Please check your inputs.';
+      const errors = Object.values(error.errors).map(err => err.message);
+      errorMessage = `Validation error: ${errors.join(', ')}`;
     }
     
     res.status(400).json({
@@ -142,7 +143,7 @@ router.post('/', upload.array('images', 5), async (req, res) => {
   }
 });
 
-// Get all custom cake requests (for admin)
+// Get all custom cake requests (for admin - will be protected in admin routes)
 router.get('/', async (req, res) => {
   try {
     const requests = await CustomCakeRequest.find().sort({ createdAt: -1 });
@@ -153,6 +154,31 @@ router.get('/', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching custom requests:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+// Get single custom cake request
+router.get('/:id', async (req, res) => {
+  try {
+    const request = await CustomCakeRequest.findById(req.params.id);
+    
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        message: 'Custom cake request not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      request
+    });
+  } catch (error) {
+    console.error('Error fetching custom request:', error);
     res.status(500).json({
       success: false,
       message: error.message
