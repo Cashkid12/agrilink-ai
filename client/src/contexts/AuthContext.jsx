@@ -24,24 +24,26 @@ export const AuthProvider = ({ children }) => {
   const checkAuth = async () => {
     try {
       const savedToken = localStorage.getItem('adminToken');
+      console.log('🔄 Auth check - Token in storage:', !!savedToken);
+      
       if (savedToken) {
         setToken(savedToken);
-        // Try to get user profile
         try {
           const response = await authAPI.getProfile();
           setUser(response.data.user);
           setIsAuthenticated(true);
+          console.log('✅ Auto-login successful:', response.data.user.username);
         } catch (error) {
-          // Token is invalid, clear it
+          console.error('❌ Auto-login failed:', error.message);
           localStorage.removeItem('adminToken');
+          localStorage.removeItem('adminUser');
           setToken(null);
           setUser(null);
           setIsAuthenticated(false);
         }
       }
     } catch (error) {
-      console.error('Auth check error:', error);
-      localStorage.removeItem('adminToken');
+      console.error('🚨 Auth check error:', error);
     } finally {
       setLoading(false);
     }
@@ -50,12 +52,16 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       setLoading(true);
-      console.log('🔐 Attempting login for:', email);
+      console.log('🔐 Login attempt started for:', email);
+      console.log('📱 Device type:', /Mobile|Android|iPhone|iPad/.test(navigator.userAgent) ? 'Mobile' : 'Desktop');
       
       const response = await authAPI.login({ email, password });
+      console.log('📨 Login API response:', response);
       
       if (response.data.success) {
         const { token, user } = response.data;
+        
+        console.log('✅ Login successful, saving token...');
         
         // Save to localStorage
         localStorage.setItem('adminToken', token);
@@ -66,16 +72,20 @@ export const AuthProvider = ({ children }) => {
         setUser(user);
         setIsAuthenticated(true);
         
-        console.log('✅ Login successful for user:', user.username);
+        console.log('🎉 Login completed for user:', user.username);
         return { success: true, user };
       } else {
-        console.error('❌ Login failed:', response.data.message);
+        console.error('❌ Login failed - API returned false:', response.data.message);
         return { success: false, message: response.data.message };
       }
     } catch (error) {
-      console.error('❌ Login error:', error);
+      console.error('💥 Login error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        code: error.code
+      });
       
-      // Better error messages for mobile
       let errorMessage = 'Login failed. Please try again.';
       
       if (error.response) {
@@ -87,9 +97,14 @@ export const AuthProvider = ({ children }) => {
         } else if (error.response.data?.message) {
           errorMessage = error.response.data.message;
         }
+        console.log('🔧 Server error details:', error.response.data);
       } else if (error.request) {
-        // Network error
-        errorMessage = 'Network error. Please check your connection.';
+        // Network error - no response received
+        errorMessage = 'Network error. Please check your internet connection.';
+        console.log('🌐 Network error - no response received');
+      } else {
+        // Other errors
+        console.log('⚡ Other error:', error.message);
       }
       
       return { success: false, message: errorMessage };
@@ -99,6 +114,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
+    console.log('🚪 Logging out...');
     localStorage.removeItem('adminToken');
     localStorage.removeItem('adminUser');
     setToken(null);
