@@ -3,69 +3,76 @@ import mongoose from 'mongoose';
 const customCakeRequestSchema = new mongoose.Schema({
   customerName: {
     type: String,
-    required: true,
-    trim: true
+    required: [true, 'Customer name is required'],
+    trim: true,
+    maxlength: [100, 'Name cannot exceed 100 characters']
   },
   phone: {
     type: String,
-    required: true,
+    required: [true, 'Phone number is required'],
     trim: true
   },
   email: {
     type: String,
     trim: true,
-    default: ''
+    lowercase: true,
+    match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
   },
   occasion: {
     type: String,
-    required: true,
-    trim: true
+    required: [true, 'Occasion is required'],
+    trim: true,
+    enum: ['Birthday', 'Wedding', 'Anniversary', 'Graduation', 'Baby Shower', 'Corporate Event', 'Christening', 'Gender Reveal', 'Other']
   },
   cakeSize: {
     type: String,
-    required: true,
-    trim: true
+    required: [true, 'Cake size is required'],
+    trim: true,
+    enum: ['small', 'medium', 'large', 'x-large']
   },
   flavor: {
     type: String,
-    required: true,
+    required: [true, 'Flavor is required'],
     trim: true
   },
   icing: {
     type: String,
-    required: true,
+    required: [true, 'Icing type is required'],
     trim: true
   },
   color: {
     type: String,
-    default: '',
-    trim: true
+    trim: true,
+    default: ''
   },
   message: {
     type: String,
+    trim: true,
     default: '',
-    trim: true
+    maxlength: [200, 'Message cannot exceed 200 characters']
   },
   designDescription: {
     type: String,
-    required: true,
-    trim: true
+    required: [true, 'Design description is required'],
+    trim: true,
+    maxlength: [1000, 'Description cannot exceed 1000 characters']
   },
   budget: {
     type: Number,
+    min: [0, 'Budget cannot be negative'],
     default: 0
   },
   deliveryDate: {
-    type: String,
-    default: ''
+    type: Date
   },
   specialInstructions: {
     type: String,
+    trim: true,
     default: '',
-    trim: true
+    maxlength: [500, 'Special instructions cannot exceed 500 characters']
   },
   referenceImages: [{
-    type: String
+    type: String // Cloudinary URLs
   }],
   status: {
     type: String,
@@ -74,10 +81,15 @@ const customCakeRequestSchema = new mongoose.Schema({
   },
   adminNotes: {
     type: String,
+    trim: true,
     default: ''
   }
 }, {
   timestamps: true
 });
+
+// Index for better query performance
+customCakeRequestSchema.index({ status: 1, createdAt: -1 });
+customCakeRequestSchema.index({ phone: 1 });
 
 export default mongoose.model('CustomCakeRequest', customCakeRequestSchema);
